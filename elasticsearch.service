@@ -1,0 +1,13 @@
+[Unit]
+Description=ElasticSearch Service
+After=network.target
+
+[Service]
+ExecStart=/home/ubuntu/elasticsearch-7.17.0/bin/elasticsearch
+PIDFile=/usr/local/bin/elasticsearch/run/elasticsearch.pid
+User=ubuntu
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=default.target

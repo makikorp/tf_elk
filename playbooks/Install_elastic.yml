@@ -1,0 +1,130 @@
+---
+- name: Install Elastic
+  hosts: host
+  remote_user: ubuntu
+  become: true
+  vars:
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks: 
+
+    - name: install aptitude 
+      apt:
+        name: aptitude
+        state: latest
+        update_cache: true
+
+    - name: apt-get update
+      ansible.builtin.apt:
+        update_cache: yes  
+
+    - name: install required packages
+      apt:
+        pkg:
+          - openjdk-8-jdk
+          - apt-transport-https
+          - software-properties-common
+          - ca-certificates
+          - wget
+          - python2.7
+          - python3          
+          - python3-pip
+        state: latest
+        update_cache: true
+      
+    - name: download apt key
+      ansible.builtin.apt_key:
+        url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        state: present
+
+    - name: Add elastic to sources.list
+      ansible.builtin.apt_repository:
+        repo: deb https://artifacts.elastic.co/packages/7.x/apt stable main
+        state: present
+
+    # - name: Add logstash to sources.list
+    #   ansible.builtin.apt_repository:
+    #     repo: deb http://packages.elastic.co/logstash/2.2/debian stable main
+    #     state: present
+
+    # - name: Add kibana to sources.list
+    #   ansible.builtin.apt_repository:
+    #     repo: deb http://packages.elastic.co/kibana/4.5/debian stable main
+    #     state: present
+
+    # - name: install elastic
+    #   apt:
+    #     pkg:
+    #       - elasticsearch
+    #     state: latest
+    #     update_cache: true
+
+
+    - name: install elastic with tarball
+      ansible.builtin.unarchive:
+        src: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.17.0-linux-x86_64.tar.gz      
+        dest: /home/ubuntu/
+        remote_src: yes
+
+
+    - name: open ports
+      community.general.ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: open ports
+      community.general.ufw:
+        rule: allow
+        port: '9200'
+        # proto: tcp
+
+    - name: open ports
+      community.general.ufw:
+        rule: allow
+        port: '5601'
+        # proto: tcp
+
+
+    - name: enable ufw
+      community.general.ufw:
+        state: enabled
+
+    - name: change owner of elasticsearch directory
+      shell: chown -R ubuntu /home/ubuntu/elasticsearch-7.17.0
+
+    - name: change elasticsearch-7.17.0 directory permissions
+      shell: chmod 777 -R /home/ubuntu/elasticsearch-7.17.0
+
+    - name: copy elasticsearch.service file
+      copy:
+        src: /Users/ericmaki/code/tf_elk/elasticsearch.service
+        dest: /etc/systemd/system
+        owner: ubuntu     
+        mode: 0755  
+
+    - name: start elastic 
+      become: true
+      shell: |
+        /bin/systemctl daemon-reload
+        /bin/systemctl enable elasticsearch.service
+        /bin/systemctl start elasticsearch.service
+
+    - name: Pause for 120 seconds for elastic to install 
+      pause: 
+        seconds: 120
+
+    - name: check elastic is running
+      shell: curl -X GET 'http://localhost:9200' > curlTestElastic.txt
+
+    - name: Display curlTestElastic.txt contents
+      command: cat curlTestElastic.txt
+      register: curl_output
+
+    - name: Print to console
+      debug:
+        msg: "{{ curl_output.stdout_lines }}"
+
+
+
